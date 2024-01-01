@@ -177,24 +177,38 @@ public class ChatClient implements Runnable{
 	}
 	
 	public void connect() throws IOException {
-		client.connect(1000, hostName, portNumber);
+		new Thread(() -> {
+			try {
+				while (!client.isConnected() && !Thread.currentThread().isInterrupted()) {
+					client.update(500);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}).start();
+
+		client.connect(5000, hostName, portNumber);
+		client.setKeepAliveTCP(300000);
 	}
+
 	//novo
 	private void sendPrivateMessage(String recipient, String txt) {
 	    PrivateMessage privateMessage = new PrivateMessage(userName, recipient, txt);
 	    client.sendTCP(privateMessage);
 	}
-	private void createRoom(String roomName) {
-	    CreateRoomRequest createRoomRequest = new CreateRoomRequest(roomName);
-	    client.sendTCP(createRoomRequest);
+
+	public void createRoom(String roomName) {
+		CreateRoomRequest createRoomRequest = new CreateRoomRequest(roomName);
+		client.sendTCP(createRoomRequest);
 	}
 	private void inviteUserToRoom(String roomName, String invitedUser) {
 	    InviteRequest inviteRequest = new InviteRequest(roomName, invitedUser);
 	    client.sendTCP(inviteRequest);
 	}
-	private void joinRoom(String roomName) {
-	    JoinRoomRequest joinRoomRequest = new JoinRoomRequest(roomName);
-	    client.sendTCP(joinRoomRequest);
+
+	public void joinRoom(String roomName) {
+		JoinRoomRequest joinRoomRequest = new JoinRoomRequest(roomName);
+		client.sendTCP(joinRoomRequest);
 	}
 	private void getMoreMessages(String roomName) {
 	    GetMoreMessagesRequest getMoreMessagesRequest = new GetMoreMessagesRequest(roomName);
@@ -211,9 +225,10 @@ public class ChatClient implements Runnable{
 	public void changeRoom(String roomName) {
 	    client.sendTCP(new ChangeRoomRequest(roomName));
 	}
-	private void sendMessageToRoom(String roomName, String messageText) throws IOException {
-	    ChatMessage chatMessage = new ChatMessage(userName, messageText, roomName);
-	    client.sendTCP(chatMessage);
+
+	public void sendMessageToRoom(String roomName, String messageText) {
+		ChatMessage chatMessage = new ChatMessage(userName, messageText, roomName);
+		client.sendTCP(chatMessage);
 	}
 	public void run() {
 		
