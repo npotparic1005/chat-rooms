@@ -177,7 +177,7 @@ public class ChatServer implements Runnable{
 
 		if (room != null) {
 			room.addUser(invitedConnection);
-			invitedConnection.sendTCP(new InfoMessage("dodati ste u sobu "+ roomName));
+			invitedConnection.sendTCP(new InvitedToRoomMessage(roomName,"You've been added to room "+ roomName));
 			inviterConnection.sendTCP(new InfoMessage("User " + userName + " invited to room " + roomName));
 		} else {
 			inviterConnection.sendTCP(new InfoMessage("Room " + roomName + " not found."));

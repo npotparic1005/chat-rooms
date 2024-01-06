@@ -64,7 +64,7 @@ public class ChatClient implements Runnable{
 
 				if (object instanceof InfoMessage) {
 					InfoMessage message = (InfoMessage)object;
-					showMessage("Server:"+message.getTxt());
+					showMessage("Server: " + message.getTxt());
 					return;
 				}
 
@@ -96,10 +96,10 @@ public class ChatClient implements Runnable{
 					return;
 				}
 
-				if (object instanceof InviteRequest) {
+				if (object instanceof InvitedToRoomMessage) {
 					// Obrada zahteva za pozivnicu u sobu
-					InviteRequest inviteRequest = (InviteRequest) object;
-					inviteUserToRoom(inviteRequest.getRoomName(), inviteRequest.getInvitedUser());
+					InvitedToRoomMessage invitedToRoomMessage = (InvitedToRoomMessage) object;
+					showMessage("Server: "+invitedToRoomMessage.getMessage());
 					return;
 				}
 
@@ -179,11 +179,11 @@ public class ChatClient implements Runnable{
 		client.sendTCP(privateMessage);
 	}
 
-
 	private void createRoom(String roomName) {
 		CreateRoomRequest createRoomRequest = new CreateRoomRequest(roomName);
 		client.sendTCP(createRoomRequest);
 	}
+
 	private void inviteUserToRoom(String roomName, String invitedUser) {
 		InviteRequest inviteRequest = new InviteRequest(roomName, invitedUser);
 		client.sendTCP(inviteRequest);
@@ -193,6 +193,7 @@ public class ChatClient implements Runnable{
 		JoinRoomRequest joinRoomRequest = new JoinRoomRequest(roomName);
 		client.sendTCP(joinRoomRequest);
 	}
+
 	private void getMoreMessages(String roomName) {
 		GetMoreMessagesRequest getMoreMessagesRequest = new GetMoreMessagesRequest(roomName);
 		client.sendTCP(getMoreMessagesRequest);
@@ -263,7 +264,10 @@ public class ChatClient implements Runnable{
 				}
 				else if (userInput.startsWith("GETMOREMESSAGES")) {
 					// Format: /GETMOREMESSAGES @room_name
-					client.sendTCP(new GetMoreMessagesRequest());
+					String[] parts = userInput.split(" ", 2);
+					if (parts.length == 2) {
+						client.sendTCP(new GetMoreMessagesRequest(parts[1]));
+					}
 				}
 				else if (userInput.startsWith("LISTROOMS")) {
 					// Format: /LISTROOMS

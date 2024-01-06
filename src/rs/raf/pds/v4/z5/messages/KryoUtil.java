@@ -24,5 +24,6 @@ public class KryoUtil {
 		kryo.register(com.esotericsoftware.kryonet.Connection.class);
 		kryo.register(com.esotericsoftware.kryonet.Server.class);
 		kryo.register(ListRooms.class);
+		kryo.register(InvitedToRoomMessage.class);
 	}
 }

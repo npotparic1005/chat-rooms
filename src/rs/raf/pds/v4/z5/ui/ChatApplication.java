@@ -9,6 +9,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import rs.raf.pds.v4.z5.messages.ChatMessage;
+import rs.raf.pds.v4.z5.messages.InfoMessage;
+import rs.raf.pds.v4.z5.messages.InvitedToRoomMessage;
+import rs.raf.pds.v4.z5.messages.ListRooms;
 import rs.raf.pds.v4.z5.ui.ChatApplicationClient;
 
 import java.io.IOException;
@@ -18,8 +22,9 @@ public class ChatApplication extends Application {
     private Stage primaryStage;
     private String userName;
     private String joinedRoom;
-    private TextArea messageArea;private TextField inputField, joinRoomField, createRoomField;
-    private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton, getMoreMessagesButton;
+    private TextArea messageArea;
+    private TextField inputField, joinRoomField, createRoomField, inviteToRoomField;
+    private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton, getMoreMessagesButton, inviteToRoomButton;
     private ComboBox<String> roomList;
 
     @Override
@@ -71,6 +76,11 @@ public class ChatApplication extends Application {
         createRoomButton = new Button("Create Room");
         createRoomButton.setOnAction(event -> createRoom(createRoomField.getText()));
 
+        inviteToRoomField = new TextField();
+        inviteToRoomField.setPromptText("Enter User to Invite");
+        inviteToRoomButton = new Button("Invite User to Current Room");
+        inviteToRoomButton.setOnAction(event -> inviteToRoom(inviteToRoomField.getText()));
+
         listRoomsButton = new Button("List Room");
         listRoomsButton.setOnAction(event -> listRooms());
 
@@ -78,8 +88,9 @@ public class ChatApplication extends Application {
         getMoreMessagesButton.setOnAction(event -> getMoreMessages());
 
         HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton, listRoomsButton);
+        HBox invitationControls = new HBox(10, inviteToRoomField, inviteToRoomButton);
         HBox messagesControls = new HBox(10, getMoreMessagesButton);
-        VBox chatLayout = new VBox(10, roomControls, messagesControls, messageArea, inputField, sendButton);
+        VBox chatLayout = new VBox(10, roomControls, invitationControls, messagesControls, messageArea, inputField, sendButton);
         chatLayout.setAlignment(Pos.CENTER);
 
         Scene chatScene = new Scene(chatLayout, 600, 500);
@@ -105,6 +116,13 @@ public class ChatApplication extends Application {
     private void createRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
             chatClient.createRoom(roomName);
+            joinedRoom = roomName;
+        }
+    }
+
+    private void inviteToRoom(String userToInvite) {
+        if (userToInvite != null && !userToInvite.trim().isEmpty() && joinedRoom != null) {
+            chatClient.inviteToRoom(joinedRoom, userToInvite);
         }
     }
 
@@ -118,6 +136,10 @@ public class ChatApplication extends Application {
         }
     }
 
+    private void displayNewMessage(String message) {
+        messageArea.appendText(message + "\n");
+    }
+
     private void initializeChatClient() {
         String hostName = "localhost";
         int portNumber = 4555;
@@ -125,14 +147,38 @@ public class ChatApplication extends Application {
         new Thread(() -> {
             try {
                 chatClient = new ChatApplicationClient(hostName, portNumber, userName);
-                chatClient.connect(message -> Platform.runLater(() -> messageArea.appendText(message + "\n")));
+                chatClient.connect(object -> Platform.runLater(() -> {
+                    System.out.println(object);
+                    if (object instanceof InfoMessage) {
+                        System.out.println(((InfoMessage) object).getTxt());
+                        InfoMessage message = (InfoMessage) object;
+                        displayNewMessage(message.getTxt());
+                        return;
+                    }
+
+                    if (object instanceof ChatMessage) {
+                        ChatMessage chatMessage = (ChatMessage) object;
+                        displayNewMessage(chatMessage.getUser()+": " + chatMessage.getTxt());
+                        return;
+                    }
+
+                    if (object instanceof ListRooms) {
+                        ListRooms listRoomsMessage = (ListRooms) object;
+                        displayNewMessage(listRoomsMessage.getRooms().toString());
+                        return;
+                    }
+
+                    if (object instanceof InvitedToRoomMessage) {
+                        InvitedToRoomMessage invitedToRoomMessage = (InvitedToRoomMessage) object;
+                        displayNewMessage(invitedToRoomMessage.getMessage());
+                        joinedRoom = invitedToRoomMessage.getRoom();
+                    }
+                }));
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }).start();
     }
-
-
 
     public static void main(String[] args) {
         launch(args);

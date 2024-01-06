@@ -20,29 +20,10 @@ public class ChatApplicationClient {
         client.connect(5000, host, port);
     }
 
-    public void connect(Consumer<String> onMessageReceived) throws IOException {
+    public void connect(Consumer<Object> onMessageReceived) throws IOException {
         client.addListener(new Listener() {
             public void received(Connection connection, Object object) {
-                System.out.println(object);
-                if (object instanceof InfoMessage) {
-                    System.out.println(((InfoMessage) object).getTxt());
-                    InfoMessage message = (InfoMessage) object;
-                    onMessageReceived.accept(message.getTxt());
-                    return;
-                }
-
-                if (object instanceof ChatMessage) {
-                    ChatMessage chatMessage = (ChatMessage) object;
-                    onMessageReceived.accept(chatMessage.getUser()+": " + chatMessage.getTxt());
-                    return;
-                }
-
-                if (object instanceof ListRooms) {
-                    ListRooms message = (ListRooms) object;
-                    onMessageReceived.accept(message.getRooms().toString());
-                    return;
-                }
-
+                onMessageReceived.accept(object);
             }
         });
 
@@ -52,6 +33,10 @@ public class ChatApplicationClient {
     private void sendLogin() {
         Login login = new Login(this.userName);
         client.sendTCP(login);
+    }
+
+    public void sendTCP(Object object) {
+        client.sendTCP(object);
     }
 
     public void sendMessageToRoom(String roomName, String messageText) {
@@ -72,6 +57,11 @@ public class ChatApplicationClient {
     public void listRooms() {
         ListRoomsRequest listRoomsRequest = new ListRoomsRequest();
         client.sendTCP(listRoomsRequest);
+    }
+
+    public void inviteToRoom(String roomName, String userToInvite) {
+        InviteRequest inviteRequest = new InviteRequest(roomName, userToInvite);
+        client.sendTCP(inviteRequest);
     }
 
     public void getMoreMessages(String roomName) {
