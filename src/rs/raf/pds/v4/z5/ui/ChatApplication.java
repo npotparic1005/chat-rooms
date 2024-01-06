@@ -19,7 +19,7 @@ public class ChatApplication extends Application {
     private String userName;
     private String joinedRoom;
     private TextArea messageArea;private TextField inputField, joinRoomField, createRoomField;
-    private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton;
+    private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton, getMoreMessagesButton;
     private ComboBox<String> roomList;
 
     @Override
@@ -74,8 +74,12 @@ public class ChatApplication extends Application {
         listRoomsButton = new Button("List Room");
         listRoomsButton.setOnAction(event -> listRooms());
 
+        getMoreMessagesButton = new Button("Get More Messages");
+        getMoreMessagesButton.setOnAction(event -> getMoreMessages());
+
         HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton, listRoomsButton);
-        VBox chatLayout = new VBox(10, roomControls, messageArea, inputField, sendButton);
+        HBox messagesControls = new HBox(10, getMoreMessagesButton);
+        VBox chatLayout = new VBox(10, roomControls, messagesControls, messageArea, inputField, sendButton);
         chatLayout.setAlignment(Pos.CENTER);
 
         Scene chatScene = new Scene(chatLayout, 600, 500);
@@ -106,6 +110,12 @@ public class ChatApplication extends Application {
 
     private void listRooms() {
         chatClient.listRooms();
+    }
+
+    private void getMoreMessages() {
+        if (joinedRoom != null) {
+            chatClient.getMoreMessages(joinedRoom);
+        }
     }
 
     private void initializeChatClient() {

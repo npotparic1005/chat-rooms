@@ -103,12 +103,11 @@ public class ChatServer implements Runnable{
 						List<ChatMessage> moreMessages = room.getMoreMessages();
 						for ( ChatMessage message: moreMessages){
 							connection.sendTCP(message);
-							connection.sendTCP(new InfoMessage("\n"));
 						}
 
 					}
 				}
-				
+
 				if(object instanceof ListRoomsRequest) {
 					ListRooms listRooms=new ListRooms(listAllRooms());
 					connection.sendTCP(listRooms);

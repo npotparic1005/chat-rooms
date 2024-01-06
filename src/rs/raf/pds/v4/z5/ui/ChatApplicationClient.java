@@ -74,6 +74,11 @@ public class ChatApplicationClient {
         client.sendTCP(listRoomsRequest);
     }
 
+    public void getMoreMessages(String roomName) {
+        GetMoreMessagesRequest getMoreMessagesRequest = new GetMoreMessagesRequest(roomName);
+        client.sendTCP(getMoreMessagesRequest);
+    }
+
     public void disconnect() {
         client.stop();
     }
