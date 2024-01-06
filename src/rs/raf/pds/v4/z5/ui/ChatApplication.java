@@ -9,17 +9,17 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import rs.raf.pds.v4.z5.ChatClient;
+import rs.raf.pds.v4.z5.ui.ChatApplicationClient;
 
 import java.io.IOException;
 
 public class ChatApplication extends Application {
-    private ChatClient chatClient;
+    private ChatApplicationClient chatClient;
     private Stage primaryStage;
     private String userName;
     private String joinedRoom;
     private TextArea messageArea;private TextField inputField, joinRoomField, createRoomField;
-    private Button sendButton, joinRoomButton, createRoomButton;
+    private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton;
     private ComboBox<String> roomList;
 
     @Override
@@ -71,7 +71,10 @@ public class ChatApplication extends Application {
         createRoomButton = new Button("Create Room");
         createRoomButton.setOnAction(event -> createRoom(createRoomField.getText()));
 
-        HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton);
+        listRoomsButton = new Button("List Room");
+        listRoomsButton.setOnAction(event -> listRooms());
+
+        HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton, listRoomsButton);
         VBox chatLayout = new VBox(10, roomControls, messageArea, inputField, sendButton);
         chatLayout.setAlignment(Pos.CENTER);
 
@@ -84,7 +87,6 @@ public class ChatApplication extends Application {
         String message = inputField.getText();
         if (!message.isEmpty() && joinedRoom != null && !joinedRoom.isEmpty()) {
             chatClient.sendMessageToRoom(joinedRoom, message);
-            messageArea.appendText(userName + ": " + message + "\n");
             inputField.clear();
         }
     }
@@ -92,7 +94,6 @@ public class ChatApplication extends Application {
     private void joinRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
             chatClient.joinRoom(roomName);
-            messageArea.appendText("Attempting to join room: " + roomName + "\n");
             joinedRoom = roomName;
         }
     }
@@ -100,8 +101,11 @@ public class ChatApplication extends Application {
     private void createRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
             chatClient.createRoom(roomName);
-            messageArea.appendText("Attempting to create room: " + roomName + "\n");
         }
+    }
+
+    private void listRooms() {
+        chatClient.listRooms();
     }
 
     private void initializeChatClient() {
@@ -110,8 +114,8 @@ public class ChatApplication extends Application {
 
         new Thread(() -> {
             try {
-                chatClient = new ChatClient(hostName, portNumber, userName);
-                chatClient.connect();
+                chatClient = new ChatApplicationClient(hostName, portNumber, userName);
+                chatClient.connect(message -> Platform.runLater(() -> messageArea.appendText(message + "\n")));
             } catch (IOException e) {
                 e.printStackTrace();
             }
