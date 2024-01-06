@@ -25,7 +25,7 @@ public class ChatApplicationClient {
             public void received(Connection connection, Object object) {
                 System.out.println(object);
                 if (object instanceof InfoMessage) {
-                    System.out.println(((InfoMessage) object).getTxt()); // Logging for debugging
+                    System.out.println(((InfoMessage) object).getTxt());
                     InfoMessage message = (InfoMessage) object;
                     onMessageReceived.accept(message.getTxt());
                     return;
@@ -73,8 +73,6 @@ public class ChatApplicationClient {
         ListRoomsRequest listRoomsRequest = new ListRoomsRequest();
         client.sendTCP(listRoomsRequest);
     }
-
-    // Add additional methods for other actions like leaving a room, sending private messages, etc.
 
     public void disconnect() {
         client.stop();
