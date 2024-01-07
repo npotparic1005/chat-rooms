@@ -32,6 +32,7 @@ public class KryoUtil {
 		kryo.register(ListRooms.class);
 		kryo.register(InvitedToRoomMessage.class);
 		kryo.register(EditedMessage.class);
+		kryo.register(ReplyMessageRequest.class);
 	}
 }
 

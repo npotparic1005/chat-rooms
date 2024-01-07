@@ -64,6 +64,12 @@ public class ChatServer implements Runnable{
 					return;
 				}
 
+				if (object instanceof ReplyMessageRequest) {
+					ReplyMessageRequest replyMessageRequest = (ReplyMessageRequest) object;
+					handleReplyMessageRequest(replyMessageRequest, connection);
+					return;
+				}
+
 				if (object instanceof WhoRequest) {
 					ListUsers listUsers = new ListUsers(getAllUsers());
 					connection.sendTCP(listUsers);
@@ -301,6 +307,22 @@ public class ChatServer implements Runnable{
 			} else {
 				connection.sendTCP(new InfoMessage("Message not found or you don't have permission to edit this message."));
 			}
+		} else {
+			connection.sendTCP(new InfoMessage("You are not in a room."));
+		}
+	}
+
+	private void handleReplyMessageRequest(ReplyMessageRequest replyMessageRequest, Connection connection) {
+		String username = connectionUserMap.get(connection);
+		String roomName = userRoomMap.get(username);
+		Room room = rooms.get(roomName);
+
+		if (room != null) {
+			ChatMessage chatMessage = new ChatMessage(username, replyMessageRequest.getReplyMessage(), roomName);
+			System.out.println(chatMessage.getUser() + ": " + chatMessage.getTxt() + ": " + chatMessage.getRoom());
+			broadcastChatMessageinRoom(chatMessage, connection);
+
+			room.addMessage(chatMessage);
 		} else {
 			connection.sendTCP(new InfoMessage("You are not in a room."));
 		}

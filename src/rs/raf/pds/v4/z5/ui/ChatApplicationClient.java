@@ -37,10 +37,6 @@ public class ChatApplicationClient {
         client.sendTCP(login);
     }
 
-    public void sendTCP(Object object) {
-        client.sendTCP(object);
-    }
-
     public void sendMessageToRoom(String roomName, String messageText) {
         ChatMessage chatMessage = new ChatMessage(userName, messageText, roomName);
         client.sendTCP(chatMessage);
@@ -74,6 +70,11 @@ public class ChatApplicationClient {
     public void sendEditMessageRequest(UUID messageId, String newMessage) {
         EditMessageRequest editMessageRequest = new EditMessageRequest(messageId, newMessage);
         client.sendTCP(editMessageRequest);
+    }
+
+    public void sendReplyMessageRequest(String replyMessage, String originalMessage) {
+        ReplyMessageRequest replyMessageRequest = new ReplyMessageRequest(replyMessage, originalMessage);
+        client.sendTCP(replyMessageRequest);
     }
 
     public void disconnect() {

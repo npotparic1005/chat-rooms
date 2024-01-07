@@ -66,14 +66,21 @@ public class ChatApplication extends Application {
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(item.getUser() + ": " + item.getContent());
+                    setText("[" + item.getUser() + "] " + item.getContent());
+
+                    ContextMenu contextMenu = new ContextMenu();
+
                     if (item.isOwnMessage()) {
-                        ContextMenu contextMenu = new ContextMenu();
                         MenuItem editItem = new MenuItem("Edit");
                         editItem.setOnAction(event -> editMessage(item));
                         contextMenu.getItems().add(editItem);
-                        setContextMenu(contextMenu);
                     }
+
+                    MenuItem replyItem = new MenuItem("Reply");
+                    replyItem.setOnAction(event -> initiateReply(item));
+                    contextMenu.getItems().addAll(replyItem);
+
+                    setContextMenu(contextMenu);
                 }
             }
         });
@@ -125,6 +132,24 @@ public class ChatApplication extends Application {
         });
     }
 
+    private void initiateReply(ChatMessageItem originalMessageItem) {
+        String originalMessage = originalMessageItem.getContent();
+        inputField.setPromptText("Replying to: " + originalMessage);
+
+        sendButton.setOnAction(event -> {
+            String replyContent = inputField.getText();
+
+            if (!replyContent.isEmpty() && joinedRoom != null && !joinedRoom.isEmpty()) {
+                chatClient.sendReplyMessageRequest(replyContent, originalMessage);
+                inputField.clear();
+            }
+
+            // Vracamo originalni event
+            sendButton.setOnAction(e -> sendMessage());
+            inputField.setPromptText("");
+        });
+    }
+
     private void sendMessage() {
         String message = inputField.getText();
         if (!message.isEmpty() && joinedRoom != null && !joinedRoom.isEmpty()) {
@@ -135,6 +160,7 @@ public class ChatApplication extends Application {
 
     private void joinRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
+            messageListView.getItems().clear();
             chatClient.joinRoom(roomName);
             joinedRoom = roomName;
         }
@@ -142,6 +168,7 @@ public class ChatApplication extends Application {
 
     private void createRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
+            messageListView.getItems().clear();
             chatClient.createRoom(roomName);
             joinedRoom = roomName;
         }
