@@ -1,31 +1,27 @@
 package rs.raf.pds.v4.z5.ui;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import rs.raf.pds.v4.z5.messages.ChatMessage;
-import rs.raf.pds.v4.z5.messages.InfoMessage;
-import rs.raf.pds.v4.z5.messages.InvitedToRoomMessage;
-import rs.raf.pds.v4.z5.messages.ListRooms;
-import rs.raf.pds.v4.z5.ui.ChatApplicationClient;
+import rs.raf.pds.v4.z5.messages.*;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public class ChatApplication extends Application {
     private ChatApplicationClient chatClient;
     private Stage primaryStage;
     private String userName;
     private String joinedRoom;
-    private TextArea messageArea;
+    private TextArea infoMessageArea;
     private TextField inputField, joinRoomField, createRoomField, inviteToRoomField;
     private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton, getMoreMessagesButton, inviteToRoomButton;
-    private ComboBox<String> roomList;
+    private ListView<ChatMessageItem> messageListView;
 
     @Override
     public void start(Stage primaryStage) {
@@ -59,8 +55,28 @@ public class ChatApplication extends Application {
     }
 
     private void showChatScreen() {
-        messageArea = new TextArea();
-        messageArea.setEditable(false);
+        infoMessageArea = new TextArea();
+        infoMessageArea.setEditable(false);
+
+        messageListView = new ListView<>();
+        messageListView.setCellFactory(param -> new ListCell<ChatMessageItem>() {
+            @Override
+            protected void updateItem(ChatMessageItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getUser() + ": " + item.getContent());
+                    if (item.isOwnMessage()) {
+                        ContextMenu contextMenu = new ContextMenu();
+                        MenuItem editItem = new MenuItem("Edit");
+                        editItem.setOnAction(event -> editMessage(item));
+                        contextMenu.getItems().add(editItem);
+                        setContextMenu(contextMenu);
+                    }
+                }
+            }
+        });
 
         inputField = new TextField();
         sendButton = new Button("Send");
@@ -90,12 +106,23 @@ public class ChatApplication extends Application {
         HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton, listRoomsButton);
         HBox invitationControls = new HBox(10, inviteToRoomField, inviteToRoomButton);
         HBox messagesControls = new HBox(10, getMoreMessagesButton);
-        VBox chatLayout = new VBox(10, roomControls, invitationControls, messagesControls, messageArea, inputField, sendButton);
+        VBox chatLayout = new VBox(10, roomControls, invitationControls, messagesControls, infoMessageArea ,messageListView, inputField, sendButton);
         chatLayout.setAlignment(Pos.CENTER);
 
         Scene chatScene = new Scene(chatLayout, 600, 500);
         primaryStage.setTitle("Chat Application");
         primaryStage.setScene(chatScene);
+    }
+
+    private void editMessage(ChatMessageItem messageItem) {
+        TextInputDialog dialog = new TextInputDialog(messageItem.getContent());
+        dialog.setTitle("Edit Message");
+        dialog.setHeaderText("Enter new message");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(newMessage -> {
+            chatClient.sendEditMessageRequest(messageItem.getMessageId(), newMessage);
+        });
     }
 
     private void sendMessage() {
@@ -136,8 +163,27 @@ public class ChatApplication extends Application {
         }
     }
 
-    private void displayNewMessage(String message) {
-        messageArea.appendText(message + "\n");
+    private void updateMessageUI(EditedMessage editedMessage) {
+        Platform.runLater(() -> {
+            ObservableList<ChatMessageItem> items = messageListView.getItems();
+            for (ChatMessageItem item : items) {
+                if (item.getMessageId().equals(editedMessage.getMessageId())) {
+                    item.setContent(editedMessage.getNewContent());
+                    break;
+                }
+            }
+            messageListView.refresh();
+        });
+    }
+
+    private void displayInfoMessage(String message) {
+        infoMessageArea.appendText(message + "\n");
+    }
+
+    private void displayChatMessage(ChatMessage chatMessage) {
+        boolean isOwnMessage = userName.equals(chatMessage.getUser());
+        ChatMessageItem messageItem = new ChatMessageItem(chatMessage, isOwnMessage);
+        messageListView.getItems().add(messageItem);
     }
 
     private void initializeChatClient() {
@@ -152,26 +198,31 @@ public class ChatApplication extends Application {
                     if (object instanceof InfoMessage) {
                         System.out.println(((InfoMessage) object).getTxt());
                         InfoMessage message = (InfoMessage) object;
-                        displayNewMessage(message.getTxt());
+                        displayInfoMessage(message.getTxt());
                         return;
                     }
 
                     if (object instanceof ChatMessage) {
                         ChatMessage chatMessage = (ChatMessage) object;
-                        displayNewMessage(chatMessage.getUser()+": " + chatMessage.getTxt());
+                        displayChatMessage(chatMessage);
                         return;
                     }
 
                     if (object instanceof ListRooms) {
                         ListRooms listRoomsMessage = (ListRooms) object;
-                        displayNewMessage(listRoomsMessage.getRooms().toString());
+                        displayInfoMessage(listRoomsMessage.getRooms().toString());
                         return;
                     }
 
                     if (object instanceof InvitedToRoomMessage) {
                         InvitedToRoomMessage invitedToRoomMessage = (InvitedToRoomMessage) object;
-                        displayNewMessage(invitedToRoomMessage.getMessage());
+                        displayInfoMessage(invitedToRoomMessage.getMessage());
                         joinedRoom = invitedToRoomMessage.getRoom();
+                    }
+
+                    if (object instanceof EditedMessage) {
+                        EditedMessage editedMessage = (EditedMessage) object;
+                        updateMessageUI(editedMessage);
                     }
                 }));
             } catch (IOException e) {

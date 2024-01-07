@@ -1,6 +1,11 @@
 package rs.raf.pds.v4.z5.messages;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Output;
+
+import java.util.UUID;
 
 public class KryoUtil {
 	public static void registerKryoClasses(Kryo kryo) {
@@ -21,9 +26,30 @@ public class KryoUtil {
 		kryo.register(GetMoreMessagesRequest.class);
 		kryo.register(java.util.ArrayList.class);
 		kryo.register(java.util.LinkedList.class);
+		kryo.register(java.util.UUID.class, new UUIDSerializer());
 		kryo.register(com.esotericsoftware.kryonet.Connection.class);
 		kryo.register(com.esotericsoftware.kryonet.Server.class);
 		kryo.register(ListRooms.class);
 		kryo.register(InvitedToRoomMessage.class);
+		kryo.register(EditedMessage.class);
+	}
+}
+
+// Kryonet nema svoj UUID serializer
+class UUIDSerializer extends Serializer<UUID> {
+
+	public UUIDSerializer() {
+		setImmutable(true);
+	}
+
+	@Override
+	public void write(final Kryo kryo, final Output output, final UUID uuid) {
+		output.writeLong(uuid.getMostSignificantBits());
+		output.writeLong(uuid.getLeastSignificantBits());
+	}
+
+	@Override
+	public UUID read(final Kryo kryo, final Input input, final Class<UUID> uuidClass) {
+		return new UUID(input.readLong(), input.readLong());
 	}
 }

@@ -69,6 +69,7 @@ public class ChatServer implements Runnable{
 					connection.sendTCP(listUsers);
 					return;
 				}
+
 				/*
 				if (object instanceof PrivateMessage) {
 	                PrivateMessage privateMessage = (PrivateMessage) object;
@@ -77,12 +78,14 @@ public class ChatServer implements Runnable{
 	                return;
 	            }
 	            */
+
 				if (object instanceof CreateRoomRequest) {
 					CreateRoomRequest createRoomRequest = (CreateRoomRequest) object;
 					Room room = new Room(createRoomRequest.getRoomName());
 					createRoom(room, connection);
 					return;
 				}
+
 				if (object instanceof InviteRequest) {
 					InviteRequest inviteRequest = (InviteRequest) object;
 					String roomName = inviteRequest.getRoomName();
@@ -90,11 +93,13 @@ public class ChatServer implements Runnable{
 					addUserToRoom(roomName, invitedUser, connection);
 					return;
 				}
+
 				if (object instanceof JoinRoomRequest) {
 					JoinRoomRequest joinRoomRequest = (JoinRoomRequest) object;
 					joinRoom(joinRoomRequest.getRoomName(), connection);
 					return;
 				}
+
 				if (object instanceof GetMoreMessagesRequest) {
 					GetMoreMessagesRequest moreMessagesRequest = (GetMoreMessagesRequest) object;
 					String roomName = moreMessagesRequest.getRoomName();
@@ -113,12 +118,19 @@ public class ChatServer implements Runnable{
 					connection.sendTCP(listRooms);
 					return;
 				}
+
 				if (object instanceof ChangeRoomRequest) {
 					ChangeRoomRequest changeRoomRequest = (ChangeRoomRequest) object;
 					changeUserRoom(connection, changeRoomRequest.getRoomName());
 					return;
 				}
 
+				if (object instanceof EditMessageRequest) {
+					EditMessageRequest editMessageRequest = (EditMessageRequest) object;
+					System.out.println(editMessageRequest.getMessageId() + ": " + editMessageRequest.getNewContent());
+					handleEditMessageRequest(editMessageRequest, connection);
+					return;
+				}
 			}
 
 			public void disconnected(Connection connection) {
@@ -175,8 +187,14 @@ public class ChatServer implements Runnable{
 		Room room = rooms.get(roomName);
 		Connection invitedConnection = userConnectionMap.get(userName);
 
+		if (invitedConnection == null) {
+			inviterConnection.sendTCP(new InfoMessage("User " + userName + " not found."));
+			return;
+		}
+
 		if (room != null) {
 			room.addUser(invitedConnection);
+			userRoomMap.put(userName,roomName);
 			invitedConnection.sendTCP(new InvitedToRoomMessage(roomName,"You've been added to room "+ roomName));
 			inviterConnection.sendTCP(new InfoMessage("User " + userName + " invited to room " + roomName));
 		} else {
@@ -186,11 +204,13 @@ public class ChatServer implements Runnable{
 
 	private void joinRoom(String roomName, Connection connection) {
 		if (rooms.containsKey(roomName)) {
+			String username = connectionUserMap.get(connection);
 			Room room = rooms.get(roomName);
 			List<Connection> users=room.getUsers();
 
 			if (!(users.contains(connection))) {
 				users.add(connection);
+				userRoomMap.put(username,roomName);
 				connection.sendTCP(new InfoMessage("You joined room '" + roomName + "'."));
 				List<ChatMessage> lastMessages = getLastMessagesForRoom(roomName);
 				if(!(lastMessages.size()==0)) {
@@ -236,6 +256,8 @@ public class ChatServer implements Runnable{
 		creatorConnection.sendTCP(new InfoMessage("Room '" + room.getName() + "' created successfully."));
 		room.addUser(creatorConnection);
 
+		String username = connectionUserMap.get(creatorConnection);
+		userRoomMap.put(username,room.getName());
 	}
 	private List<ChatMessage> getLastMessagesForRoom(String roomName) {
 
@@ -262,6 +284,34 @@ public class ChatServer implements Runnable{
 		} else {
 			// Obavesti pošiljaoca da primalac nije dostupan
 			senderConnection.sendTCP(new InfoMessage("User " + recipientUsername + " is not currently online."));
+		}
+	}
+
+	private void handleEditMessageRequest(EditMessageRequest editRequest, Connection connection) {
+		String username = connectionUserMap.get(connection);
+		String roomName = userRoomMap.get(username);
+		Room room = rooms.get(roomName);
+
+		if (room != null) {
+			ChatMessage messageToEdit = room.getMessageById(editRequest.getMessageId());
+			if (messageToEdit != null && messageToEdit.getUser().equals(username)) {
+				messageToEdit.setTxt(editRequest.getNewContent());
+				EditedMessage editedMessage = new EditedMessage(editRequest.getMessageId(), editRequest.getNewContent());
+				broadcastEditedMessageInRoom(editedMessage, roomName);
+			} else {
+				connection.sendTCP(new InfoMessage("Message not found or you don't have permission to edit this message."));
+			}
+		} else {
+			connection.sendTCP(new InfoMessage("You are not in a room."));
+		}
+	}
+
+	private void broadcastEditedMessageInRoom(EditedMessage editedMessage, String roomName) {
+		Room room = rooms.get(roomName);
+		if (room != null) {
+			for (Connection conn : room.getUsers()) {
+				conn.sendTCP(editedMessage);
+			}
 		}
 	}
 

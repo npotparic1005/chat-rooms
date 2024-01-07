@@ -3,6 +3,8 @@ package rs.raf.pds.v4.z5.ui;
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
+
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.io.IOException;
 import rs.raf.pds.v4.z5.messages.*;
@@ -67,6 +69,11 @@ public class ChatApplicationClient {
     public void getMoreMessages(String roomName) {
         GetMoreMessagesRequest getMoreMessagesRequest = new GetMoreMessagesRequest(roomName);
         client.sendTCP(getMoreMessagesRequest);
+    }
+
+    public void sendEditMessageRequest(UUID messageId, String newMessage) {
+        EditMessageRequest editMessageRequest = new EditMessageRequest(messageId, newMessage);
+        client.sendTCP(editMessageRequest);
     }
 
     public void disconnect() {

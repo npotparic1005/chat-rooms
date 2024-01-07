@@ -1,9 +1,6 @@
 package rs.raf.pds.v4.z5.messages;
 
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 import com.esotericsoftware.kryonet.Connection;
 
@@ -57,8 +54,15 @@ public class Room {
 
 	public void addMessage(ChatMessage message) {
 		messages.add(message);
-		
 	}
-    
+
+    public ChatMessage getMessageById(UUID messageId) {
+        for (ChatMessage message : messages) {
+            if (message.getMessageId().equals(messageId)) {
+                return message;
+            }
+        }
+        return null;
+    }
     // Dodajte metode za dodavanje korisnika i poruka po potrebi
 }
