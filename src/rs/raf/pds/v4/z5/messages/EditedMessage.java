@@ -2,16 +2,16 @@ package rs.raf.pds.v4.z5.messages;
 
 import java.util.UUID;
 
-public class EditMessageRequest {
+public class EditedMessage {
     private UUID messageId;
     private String newContent;
 
-    public EditMessageRequest(UUID messageId, String newContent) {
+    public EditedMessage(UUID messageId, String newContent) {
         this.messageId = messageId;
-        this.newContent = "Edited: " + newContent;
+        this.newContent = newContent;
     }
 
-    public EditMessageRequest() {
+    public EditedMessage() {
     }
 
     public UUID getMessageId() {

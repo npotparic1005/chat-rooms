@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,20 +13,7 @@ import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 
-import rs.raf.pds.v4.z5.messages.ChangeRoomRequest;
-import rs.raf.pds.v4.z5.messages.ChatMessage;
-import rs.raf.pds.v4.z5.messages.CreateRoomRequest;
-import rs.raf.pds.v4.z5.messages.GetMoreMessagesRequest;
-import rs.raf.pds.v4.z5.messages.InfoMessage;
-import rs.raf.pds.v4.z5.messages.InviteRequest;
-import rs.raf.pds.v4.z5.messages.JoinRoomRequest;
-import rs.raf.pds.v4.z5.messages.KryoUtil;
-import rs.raf.pds.v4.z5.messages.ListRoomsRequest;
-import rs.raf.pds.v4.z5.messages.ListUsers;
-import rs.raf.pds.v4.z5.messages.Login;
-import rs.raf.pds.v4.z5.messages.PrivateMessage;
-import rs.raf.pds.v4.z5.messages.Room;
-import rs.raf.pds.v4.z5.messages.WhoRequest;
+import rs.raf.pds.v4.z5.messages.*;
 
 
 public class ChatClient implements Runnable{
@@ -76,10 +64,10 @@ public class ChatClient implements Runnable{
 
 				if (object instanceof InfoMessage) {
 					InfoMessage message = (InfoMessage)object;
-					showMessage("Server:"+message.getTxt());
+					showMessage("Server: " + message.getTxt());
 					return;
 				}
-				
+
 				/*if (object instanceof ChatMessage) {
 					ChatMessage message = (ChatMessage)object;
 					showMessage(message.getUser()+"r:"+message.getTxt());
@@ -108,10 +96,10 @@ public class ChatClient implements Runnable{
 					return;
 				}
 
-				if (object instanceof InviteRequest) {
+				if (object instanceof InvitedToRoomMessage) {
 					// Obrada zahteva za pozivnicu u sobu
-					InviteRequest inviteRequest = (InviteRequest) object;
-					inviteUserToRoom(inviteRequest.getRoomName(), inviteRequest.getInvitedUser());
+					InvitedToRoomMessage invitedToRoomMessage = (InvitedToRoomMessage) object;
+					showMessage("Server: "+invitedToRoomMessage.getMessage());
 					return;
 				}
 
@@ -122,10 +110,9 @@ public class ChatClient implements Runnable{
 					return;
 				}
 
-				if (object instanceof ListRoomsRequest) {
-					// Obrada zahteva za listanje svih soba
-					ListRoomsRequest listRoomsRequest = (ListRoomsRequest) object;
-					listRooms(listRoomsRequest.getRooms());
+				if(object instanceof ListRooms) {
+					ListRooms listRooms=(ListRooms)object;
+					listAllRooms(listRooms.getRooms());
 					return;
 				}
 				if (object instanceof ChangeRoomRequest) {
@@ -147,6 +134,12 @@ public class ChatClient implements Runnable{
 	}
 	private void showChatMessage(ChatMessage chatMessage) {
 		System.out.println(chatMessage.getUser()+":"+chatMessage.getTxt());
+	}
+	private void listAllRooms(ArrayList<String> rooms) {
+		System.out.print("Server:");
+		for(String room:rooms) {
+			System.out.println(room);
+		}
 	}
 	private void showMessage(String txt) {
 		System.out.println(txt);
@@ -176,26 +169,9 @@ public class ChatClient implements Runnable{
 			stopThread.interrupt();
 	}
 
-		public void connect() throws IOException {
-			client.connect(10000, hostName, portNumber);
-		}
-
-		// Connect za app
-//	public void connect() throws IOException {
-//		client.connect(5000, hostName, portNumber);
-//
-//		new Thread(() -> {
-//			try {
-//				while (!client.isConnected() && !Thread.currentThread().isInterrupted()) {
-//					client.update(500);
-//				}
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		}).start();
-//
-//		client.setKeepAliveTCP(300000);
-//	}
+	public void connect() throws IOException {
+		client.connect(1000, hostName, portNumber);
+	}
 
 	//novo
 	private void sendPrivateMessage(String recipient, String txt) {
@@ -203,19 +179,21 @@ public class ChatClient implements Runnable{
 		client.sendTCP(privateMessage);
 	}
 
-	public void createRoom(String roomName) {
+	private void createRoom(String roomName) {
 		CreateRoomRequest createRoomRequest = new CreateRoomRequest(roomName);
 		client.sendTCP(createRoomRequest);
 	}
+
 	private void inviteUserToRoom(String roomName, String invitedUser) {
 		InviteRequest inviteRequest = new InviteRequest(roomName, invitedUser);
 		client.sendTCP(inviteRequest);
 	}
 
-	public void joinRoom(String roomName) {
+	private void joinRoom(String roomName) {
 		JoinRoomRequest joinRoomRequest = new JoinRoomRequest(roomName);
 		client.sendTCP(joinRoomRequest);
 	}
+
 	private void getMoreMessages(String roomName) {
 		GetMoreMessagesRequest getMoreMessagesRequest = new GetMoreMessagesRequest(roomName);
 		client.sendTCP(getMoreMessagesRequest);
@@ -236,6 +214,7 @@ public class ChatClient implements Runnable{
 		ChatMessage chatMessage = new ChatMessage(userName, messageText, roomName);
 		client.sendTCP(chatMessage);
 	}
+
 	public void run() {
 
 		try (
@@ -285,7 +264,10 @@ public class ChatClient implements Runnable{
 				}
 				else if (userInput.startsWith("GETMOREMESSAGES")) {
 					// Format: /GETMOREMESSAGES @room_name
-					client.sendTCP(new GetMoreMessagesRequest());
+					String[] parts = userInput.split(" ", 2);
+					if (parts.length == 2) {
+						client.sendTCP(new GetMoreMessagesRequest(parts[1]));
+					}
 				}
 				else if (userInput.startsWith("LISTROOMS")) {
 					// Format: /LISTROOMS

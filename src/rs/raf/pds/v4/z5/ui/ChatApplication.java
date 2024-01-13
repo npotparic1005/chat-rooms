@@ -1,26 +1,27 @@
 package rs.raf.pds.v4.z5.ui;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import rs.raf.pds.v4.z5.ChatClient;
+import rs.raf.pds.v4.z5.messages.*;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public class ChatApplication extends Application {
-    private ChatClient chatClient;
+    private ChatApplicationClient chatClient;
     private Stage primaryStage;
     private String userName;
     private String joinedRoom;
-    private TextArea messageArea;private TextField inputField, joinRoomField, createRoomField;
-    private Button sendButton, joinRoomButton, createRoomButton;
-    private ComboBox<String> roomList;
+    private TextArea infoMessageArea;
+    private TextField inputField, joinRoomField, createRoomField, inviteToRoomField;
+    private Button sendButton, joinRoomButton, createRoomButton, listRoomsButton, getMoreMessagesButton, inviteToRoomButton;
+    private ListView<ChatMessageItem> messageListView;
 
     @Override
     public void start(Stage primaryStage) {
@@ -54,8 +55,35 @@ public class ChatApplication extends Application {
     }
 
     private void showChatScreen() {
-        messageArea = new TextArea();
-        messageArea.setEditable(false);
+        infoMessageArea = new TextArea();
+        infoMessageArea.setEditable(false);
+
+        messageListView = new ListView<>();
+        messageListView.setCellFactory(param -> new ListCell<ChatMessageItem>() {
+            @Override
+            protected void updateItem(ChatMessageItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText("[" + item.getUser() + "] " + item.getContent());
+
+                    ContextMenu contextMenu = new ContextMenu();
+
+                    if (item.isOwnMessage()) {
+                        MenuItem editItem = new MenuItem("Edit");
+                        editItem.setOnAction(event -> editMessage(item));
+                        contextMenu.getItems().add(editItem);
+                    }
+
+                    MenuItem replyItem = new MenuItem("Reply");
+                    replyItem.setOnAction(event -> initiateReply(item));
+                    contextMenu.getItems().addAll(replyItem);
+
+                    setContextMenu(contextMenu);
+                }
+            }
+        });
 
         inputField = new TextField();
         sendButton = new Button("Send");
@@ -71,8 +99,21 @@ public class ChatApplication extends Application {
         createRoomButton = new Button("Create Room");
         createRoomButton.setOnAction(event -> createRoom(createRoomField.getText()));
 
-        HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton);
-        VBox chatLayout = new VBox(10, roomControls, messageArea, inputField, sendButton);
+        inviteToRoomField = new TextField();
+        inviteToRoomField.setPromptText("Enter User to Invite");
+        inviteToRoomButton = new Button("Invite User to Current Room");
+        inviteToRoomButton.setOnAction(event -> inviteToRoom(inviteToRoomField.getText()));
+
+        listRoomsButton = new Button("List Room");
+        listRoomsButton.setOnAction(event -> listRooms());
+
+        getMoreMessagesButton = new Button("Get More Messages");
+        getMoreMessagesButton.setOnAction(event -> getMoreMessages());
+
+        HBox roomControls = new HBox(10, joinRoomField, joinRoomButton, createRoomField, createRoomButton, listRoomsButton);
+        HBox invitationControls = new HBox(10, inviteToRoomField, inviteToRoomButton);
+        HBox messagesControls = new HBox(10, getMoreMessagesButton);
+        VBox chatLayout = new VBox(10, roomControls, invitationControls, messagesControls, infoMessageArea ,messageListView, inputField, sendButton);
         chatLayout.setAlignment(Pos.CENTER);
 
         Scene chatScene = new Scene(chatLayout, 600, 500);
@@ -80,28 +121,96 @@ public class ChatApplication extends Application {
         primaryStage.setScene(chatScene);
     }
 
+    private void editMessage(ChatMessageItem messageItem) {
+        TextInputDialog dialog = new TextInputDialog(messageItem.getContent());
+        dialog.setTitle("Edit Message");
+        dialog.setHeaderText("Enter new message");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(newMessage -> {
+            chatClient.sendEditMessageRequest(messageItem.getMessageId(), newMessage);
+        });
+    }
+
+    private void initiateReply(ChatMessageItem originalMessageItem) {
+        String originalMessage = originalMessageItem.getContent();
+        inputField.setPromptText("Replying to: " + originalMessage);
+
+        sendButton.setOnAction(event -> {
+            String replyContent = inputField.getText();
+
+            if (!replyContent.isEmpty() && joinedRoom != null && !joinedRoom.isEmpty()) {
+                chatClient.sendReplyMessageRequest(replyContent, originalMessage);
+                inputField.clear();
+            }
+
+            // Vracamo originalni event
+            sendButton.setOnAction(e -> sendMessage());
+            inputField.setPromptText("");
+        });
+    }
+
     private void sendMessage() {
         String message = inputField.getText();
         if (!message.isEmpty() && joinedRoom != null && !joinedRoom.isEmpty()) {
             chatClient.sendMessageToRoom(joinedRoom, message);
-            messageArea.appendText(userName + ": " + message + "\n");
             inputField.clear();
         }
     }
 
     private void joinRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
+            messageListView.getItems().clear();
             chatClient.joinRoom(roomName);
-            messageArea.appendText("Attempting to join room: " + roomName + "\n");
             joinedRoom = roomName;
         }
     }
 
     private void createRoom(String roomName) {
         if (roomName != null && !roomName.trim().isEmpty()) {
+            messageListView.getItems().clear();
             chatClient.createRoom(roomName);
-            messageArea.appendText("Attempting to create room: " + roomName + "\n");
+            joinedRoom = roomName;
         }
+    }
+
+    private void inviteToRoom(String userToInvite) {
+        if (userToInvite != null && !userToInvite.trim().isEmpty() && joinedRoom != null) {
+            chatClient.inviteToRoom(joinedRoom, userToInvite);
+        }
+    }
+
+    private void listRooms() {
+        chatClient.listRooms();
+    }
+
+    private void getMoreMessages() {
+        if (joinedRoom != null) {
+            chatClient.getMoreMessages(joinedRoom);
+        }
+    }
+
+    private void updateMessageUI(EditedMessage editedMessage) {
+        Platform.runLater(() -> {
+            ObservableList<ChatMessageItem> items = messageListView.getItems();
+            for (ChatMessageItem item : items) {
+                if (item.getMessageId().equals(editedMessage.getMessageId())) {
+                    item.setContent(editedMessage.getNewContent());
+                    break;
+                }
+            }
+            messageListView.refresh();
+        });
+    }
+
+    private void displayInfoMessage(String message) {
+        infoMessageArea.appendText(message + "\n");
+    }
+
+    private void displayChatMessage(ChatMessage chatMessage) {
+        boolean isOwnMessage = userName.equals(chatMessage.getUser());
+        ChatMessageItem messageItem = new ChatMessageItem(chatMessage, isOwnMessage);
+        messageListView.getItems().add(messageItem);
     }
 
     private void initializeChatClient() {
@@ -110,15 +219,44 @@ public class ChatApplication extends Application {
 
         new Thread(() -> {
             try {
-                chatClient = new ChatClient(hostName, portNumber, userName);
-                chatClient.connect();
+                chatClient = new ChatApplicationClient(hostName, portNumber, userName);
+                chatClient.connect(object -> Platform.runLater(() -> {
+                    System.out.println(object);
+                    if (object instanceof InfoMessage) {
+                        System.out.println(((InfoMessage) object).getTxt());
+                        InfoMessage message = (InfoMessage) object;
+                        displayInfoMessage(message.getTxt());
+                        return;
+                    }
+
+                    if (object instanceof ChatMessage) {
+                        ChatMessage chatMessage = (ChatMessage) object;
+                        displayChatMessage(chatMessage);
+                        return;
+                    }
+
+                    if (object instanceof ListRooms) {
+                        ListRooms listRoomsMessage = (ListRooms) object;
+                        displayInfoMessage(listRoomsMessage.getRooms().toString());
+                        return;
+                    }
+
+                    if (object instanceof InvitedToRoomMessage) {
+                        InvitedToRoomMessage invitedToRoomMessage = (InvitedToRoomMessage) object;
+                        displayInfoMessage(invitedToRoomMessage.getMessage());
+                        joinedRoom = invitedToRoomMessage.getRoom();
+                    }
+
+                    if (object instanceof EditedMessage) {
+                        EditedMessage editedMessage = (EditedMessage) object;
+                        updateMessageUI(editedMessage);
+                    }
+                }));
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }).start();
     }
-
-
 
     public static void main(String[] args) {
         launch(args);
